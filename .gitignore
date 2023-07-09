@@ -5,3 +5,5 @@
 /*.iml
 /.nrepl-port
 /.idea
+/.lsp/
+/.clj-kondo/
