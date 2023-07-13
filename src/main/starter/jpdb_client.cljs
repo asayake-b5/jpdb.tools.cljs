@@ -3,6 +3,8 @@
    [ajax.core :refer [GET json-response-format POST]]
    [reagent.core :as r]))
 
+(def api-key (r/atom ""))
+
 (defn ping [api-key]
   (GET "https://jpdb.io/api/v1/ping"
     {:format :json
