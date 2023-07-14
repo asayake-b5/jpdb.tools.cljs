@@ -49,6 +49,12 @@
                                   name "test.csv"]
                               (utils/download-data csv name "text/csv")))))
 
+(defn gen-options []
+  (for [deck (:decks @user-decks)]
+    [:option
+     {:value (deck 0) :key (deck 0)}
+     (str (deck 1) " (" (deck 2) " words)")]))
+
 (defn export-component []
   (let [selected (r/atom nil)]
     [:div#export
@@ -57,10 +63,7 @@
                     [:select
                      {:on-change #(reset! selected (-> % .-target .-value js/parseInt))}
                      [:option {:value 0 :selected true :disabled true :hidden true} "Choose a deck to export"]
-                     (for [deck (:decks @user-decks)]
-                       [:option
-                        {:value (deck 0) :key (deck 0)}
-                        (str (deck 1) " (" (deck 2) " words)")])]
+                     (gen-options)]
                     [:button
                      {:type "submit"
                       :on-click #(export-deck @selected)}
@@ -71,25 +74,19 @@
 
 ;;TODO ask on the internet if can be done better
 (defn csv->jpdb [deck]
-    (->> deck
-        (mapv (fn [e] (let [[vid sid occ] e]
-           [[(js/parseInt vid) (js/parseInt sid)] (js/parseInt occ)]
-           )))
-        (reduce #(let [vocabs-old (%1 0)
-                   vocabs-new (%2 0)
-                   occs-old (%1 1)
-                   occs-new (%2 1)
-                   ]
-               [(conj vocabs-old vocabs-new) (conj occs-old occs-new)]
-               ) [[] []])
-        (zipmap [:vocabulary :occurences])
-  ))
+  (->> deck
+       (mapv (fn [e] (let [[vid sid occ] e]
+                       [[(js/parseInt vid) (js/parseInt sid)] (js/parseInt occ)])))
+       (reduce #(let [vocabs-old (%1 0)
+                      vocabs-new (%2 0)
+                      occs-old (%1 1)
+                      occs-new (%2 1)]
+                  [(conj vocabs-old vocabs-new) (conj occs-old occs-new)]) [[] []])
+       (zipmap [:vocabulary :occurences])))
 
 (comment
   (let [contents [[1 2 3] [4 5 6] [7 8 9]]]
-    (csv->jpdb contents)
-  ))
-
+    (csv->jpdb contents)))
 
 (defn import-deck [deck-name deck-contents]
   (client/create-deck @api-key deck-name (fn [response]
@@ -99,10 +96,7 @@
                                              ;; (map (fn [entry]
                                              ;;        (let [[vid sid occ]])
                                              ;;        ) deck )
-                                             (client/add-vocab-to-deck @api-key id deck (fn [response] (js/console.log response)))
-
-                                             )
-                                           )))
+                                             (client/add-vocab-to-deck @api-key id deck (fn [response] (js/console.log response)))))))
 
 (defn import-component []
   [:div#import
@@ -123,6 +117,36 @@
                     :on-click #(import-deck @deck-name @csv-content)}
                    "Import!"]]]])
 
+(defn deck-list->str [decks]
+  (->> decks
+       (map #(.-innerHTML %))
+       (reduce #(str %1 "\n" %2))))
+
+(defn delete-decks [decks]
+  (when (js/confirm (str "The following decks will be deleted: \n" (deck-list->str decks) "\nAre you sure you want to delete them all? All active cards not in an deck will be temporarily disabled until you add a deck with that word in it again, delete operation is definitive."))
+    (doseq [id (prim-seq decks)]
+      (client/delete-deck @api-key (-> id .-value js/parseInt) #(js/console.log %)))
+    (reload-decks)))
+
+;; (for [deck decks]
+  ;;   (js/console.log (str deck))))
+
+;;TODO factorize the multiple?
+(defn delete-component []
+  (let [selected (r/atom nil)]
+    [:div#delete
+     [:h3 "Delete Decks"]
+     [:p "Select the decks to delete (use shift/control/dragging for multiple) (TODO: verify and also alert)"]
+     [:form
+      {:on-submit (fn [e] (.preventDefault e))}
+      [:select
+     ;;TODO process the thing later
+       {:size 10 :multiple true :on-change #(reset! selected (-> % .-target .-selectedOptions))}
+       (gen-options)]
+      [:button
+       {:type "submit"
+        :on-click #(delete-decks @selected)}
+       "Delete!"]]]))
 (defn main-page []
   (when (= "" @api-key)
     (rfe/replace-state :starter.browser/frontpage))
