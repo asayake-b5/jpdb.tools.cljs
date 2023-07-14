@@ -25,6 +25,20 @@
   ;; (deref response))
   (.log js/console (str response)))
 
+(defn handler-list-user [response]
+  ;; (deref response))
+  (reset! user-decks response)
+  (.log js/console (str response)))
+
+(defn handler-list-special [response]
+  ;; (deref response))
+  (reset! special-decks response)
+  (.log js/console (str response)))
+
+(defn reload-decks []
+  (client/list-user-decks @api-key handler-list-user)
+  (client/list-special-decks @api-key handler-list-special))
+
 (defn export-deck [value]
   (client/list-vocabulary @api-key
                           value
