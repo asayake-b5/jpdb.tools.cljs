@@ -1,9 +1,11 @@
 (ns starter.decks
   (:require
    [reagent.core :as r]
+   ["@mui/material" :as mui]
    [reitit.frontend.easy :as rfe]
    [starter.jpdb-client :as client :refer [api-key]]
    [starter.utils :as utils]
+   [goog.object :as gobj]
    [testdouble.cljs.csv :as csv]))
 
 (defonce user-decks (r/atom nil))
@@ -128,9 +130,6 @@
       (client/delete-deck @api-key (-> id .-value js/parseInt) #(js/console.log %)))
     (reload-decks)))
 
-;; (for [deck decks]
-  ;;   (js/console.log (str deck))))
-
 ;;TODO factorize the multiple?
 (defn delete-component []
   (let [selected (r/atom nil)]
@@ -143,13 +142,108 @@
      ;;TODO process the thing later
        {:size 10 :multiple true :on-change #(reset! selected (-> % .-target .-selectedOptions))}
        (gen-options)]
+      [:br]
       [:button
        {:type "submit"
         :on-click #(delete-decks @selected)}
        "Delete!"]]]))
+
+(defn vid-occ-merge
+  [decks]
+  (->> decks
+       (mapv (fn [deck] (into {} (map (fn [e f] [e [f]]) (get deck 0) (get deck 1)))))
+       (apply merge-with (fn [a [b]] (conj a b)))))
+
+(defn merge-view-decks [selected contents]
+  (let [temp (r/atom nil)]
+    (-> (->> selected
+             (prim-seq)
+             (mapv (fn [deck] (-> (client/list-vocabulary-fetch @api-key (-> deck .-value js/parseInt) true)
+                               ;; (.then (fn [r] [[(-> r :body :vocabulary js->clj)] (-> r :body :occurences js->clj)])))))
+                                  (.then (fn [r] (-> r :body))))))
+             (js/Promise.all))
+        (.then (fn [a] (->> a
+                          ;; (map clj->js)
+                            (mapv (fn [deck] [(gobj/get deck "vocabulary") (gobj/get deck "occurences")]))
+                            (mapv js->clj)
+                          ;; (mapv (fn [deck] [1]))
+                            (vid-occ-merge)
+                            (reset! temp))
+               ;; (prn (clj->js (keys @contents)))
+
+                 (client/lookup-vocabulary @api-key (keys @temp)  (fn [r] (->> (:vocabulary_info r)
+                                                                               (mapv
+                                                                                (fn [info] (conj info (get @temp [(info 0) (info 1)]))))
+                                                                               (reset! contents)))))))))
+
+(defn viewer-select-component [selected contents]
+  [:form
+   {:on-submit (fn [e] (.preventDefault e))}
+   [:select
+     ;;TODO process the thing later
+    {:size 10 :multiple true :on-change #(reset! selected (-> % .-target .-selectedOptions))}
+    (gen-options)]
+   [:br]
+   [:button
+    {:type "submit"
+     :on-click #(merge-view-decks @selected contents)}
+    "View!"]])
+
+(defn viewer-filter-component [filters]
+;; New/due/machin bidule
+;; vid/sid/kanji/furi/etc
+;; occurences, highest occurence in any deck total occurences
+;; freqs, highest freq, jpdb freq
+;; cuttofs?
+  [:div#filters [:label {:htmlFor "new"} "New"] [:input {:type "checkbox" :id "new" :name "New"}]])
+
+(defn viewer-list-component [filters contents]
+  (let [rows-per-page (r/atom 10)
+        page (r/atom 0)]
+    (fn [filters contents]
+
+      [:div#list
+       [:> mui/TableContainer
+        [:> mui/TableHead
+         [:> mui/TableRow
+          [:> mui/TableCell "Name"]
+          [:> mui/TableCell "Occurences"]
+          [:> mui/TableCell "Definitions"]
+          [:> mui/TableCell "Top"]
+          [:> mui/TableCell "Level?idk"]]]
+        [:> mui/TableBody
+         (map (fn [row] ^{:key (get row 0)}
+                [:> mui/TableRow
+                 [:> mui/TableCell (str (get row 2))] ;;TODO ruby and shit
+                 [:> mui/TableCell (str (reduce + (peek row)) "  " (flatten (peek row)))]
+                 [:> mui/TableCell (str (get row 4))]
+                 [:> mui/TableCell (str (get row 6))]
+                 [:> mui/TableCell (str (peek row))]])
+              (get (vec (partition @rows-per-page @rows-per-page nil @contents)) @page))] ;;TODO optimize this? does it get recalculated? but it should be lazy anyway
+        [:> mui/TableFooter
+         [:> mui/TableRow
+          [:> mui/TablePagination
+           {:count (count @contents) :rows-per-page @rows-per-page
+            :on-page-change (fn [_ newpage]  (reset! page newpage)) :page @page
+            :on-rows-per-page-change (fn [event] (reset! rows-per-page (-> event .-target .-value)))}]]]]])))
+
+(defn viewer-component []
+  (let [selected (r/atom nil)
+        filters (r/atom {:test "test"})
+        contents (r/atom nil)]
+    (fn []
+      [:div#viewer
+       [:h3 "View Decks (TODOish, will see improvement over time)"]
+       [:p "TODOs: a tab for a 'review mode' where words are stacked together, etc etc"]
+       [viewer-select-component selected contents]
+       [viewer-filter-component filters]
+       [viewer-list-component filters contents]])))
+
 (defn main-page []
   (when (= "" @api-key)
     (rfe/replace-state :starter.browser/frontpage))
   [:div
-   (export-component)
-   (import-component)])
+   [export-component]
+   [import-component]
+   [delete-component]
+   [viewer-component]])

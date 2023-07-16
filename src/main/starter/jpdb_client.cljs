@@ -1,6 +1,7 @@
 (ns starter.jpdb-client
   (:require
    [ajax.core :refer [GET json-response-format POST]]
+   [lambdaisland.fetch :as fetch]
    [reagent.core :as r]))
 
 (def api-key (r/atom ""))
@@ -32,11 +33,12 @@
 
 (defn list-vocabulary
   ([api-key deck-id handler-list-vocab]
-   (list-vocabulary api-key deck-id false))
+   (list-vocabulary api-key deck-id false) handler-list-vocab)
   ([api-key deck-id fetch-occurences? handler-list-vocab]
    (POST "https://jpdb.io/api/v1/deck/list-vocabulary"
      {:format :json
-      :response-format (json-response-format {:keywords? true})
+      :response-format :json
+      :keywords? true
       :handler handler-list-vocab
       :params {:id deck-id :fetch_occurences fetch-occurences?}
       :headers {:Authorization (str "Bearer " api-key)}})))
@@ -47,7 +49,7 @@
     {:format :json
      :response-format (json-response-format {:keywords? true})
      :handler handler-lookup-vocab
-     :params {:list (:vocabulary vocabulary)
+     :params {:list vocabulary
               :fields [:vid
                        :sid
                        :spelling
@@ -81,29 +83,11 @@
      :params {:id deck-id :vocabulary (:vocabulary vocab) :occurences (:occurences vocab)}
      :headers {:Authorization (str "Bearer " api-key)}}))
 
-;;TODO verify with deck
-(defn merge-vocab-occurences [deck-vocab]
-  (let [everything (deref deck-vocab)
-        vocab (:vocabulary everything)
-        occurences (:occurences everything)]
-    (map conj vocab occurences)))
-
-(defn mass-delete-decks [api-key decks]
-  (map (partial delete-deck api-key) decks))
-
-;; (comment
-;;   (delete-deck api-key 38)
-;;   (mass-delete-decks api-key (range 42 47))
-;;   (list-decks api-key)
-;;   (create-deck api-key "baba")
-;;   (list-special-decks api-key)
-;;   (list-vocabulary api-key 48 true)
-;;   (lookup-vocabulary api-key (deref deck-vocab))
-;;   (add-vocab-to-deck api-key 47 (deref deck-vocab))
-;;   (merge-vocab-occurences)
-;;   (deref special-decks)
-;;   (deref deck-vocab)
-;;   (deref user-decks))
+(defn list-vocabulary-fetch [api-key deck-id fetch-occurences?]
+  (fetch/post "https://jpdb.io/api/v1/deck/list-vocabulary"
+              {:content-type :json
+               :body {:id deck-id :fetch_occurences fetch-occurences?}
+               :headers {"Authorization"  (str "Bearer " api-key)}}))
 
 (defn map-special-id
   [deck]
