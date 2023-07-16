@@ -1,3 +1,5 @@
+ensure.sh from https://answers.netlify.com/t/java-11-support/67078/18
+
 # shadow-cljs - browser quickstart
 
 This is a minimum template you can use as the basis for CLJS projects intended to run in the browser.
