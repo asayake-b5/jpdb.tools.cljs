@@ -234,19 +234,35 @@
        [viewer-filter-component filters]
        [viewer-list-component filters contents]])))
 
+(defn TabPanel []
+  (let [this (r/current-component)
+        props (r/props this)
+        value (:value props)
+        index (:index props)]
+    [:div {:role "tabpanel" :hidden (not= value index)}
+     (when (= value index)
+       (into [:> mui/Box {:p 3}] (r/children this)))]))
+
 (defn main-page []
-  (when (= "" @api-key)
-    (rfe/replace-state :starter.browser/frontpage))
-  [:div
-   [:> mui/Accordion
-    [:> mui/AccordionSummary "Export A Deck"]
-    [:> mui/AccordionDetails [export-component]]]
-   [:> mui/Accordion
-    [:> mui/AccordionSummary "Import Decks"]
-    [:> mui/AccordionDetails [import-component]]]
-   [:> mui/Accordion
-    [:> mui/AccordionSummary "Delete Decks"]
-    [:> mui/AccordionDetails [delete-component]]]
-   [:> mui/Accordion
-    [:> mui/AccordionSummary "View Decks"]
-    [:> mui/AccordionDetails [viewer-component]]]])
+  (let [tab (r/atom 0)]
+    (fn []
+      (when (= "" @api-key)
+        (rfe/replace-state :starter.browser/frontpage))
+      [:div
+       [:> mui/Tabs {:value @tab :on-change #(reset! tab %2)}
+        [:> mui/Tab {:label "Decks"} :id 0]
+        [:> mui/Tab {:label "Mokuro"} :id 1]]
+       [TabPanel {:value @tab :index 0}
+        [:> mui/Accordion
+         [:> mui/AccordionSummary "Export A Deck"]
+         [:> mui/AccordionDetails [export-component]]]
+        [:> mui/Accordion
+         [:> mui/AccordionSummary "Import Decks"]
+         [:> mui/AccordionDetails [import-component]]]
+        [:> mui/Accordion
+         [:> mui/AccordionSummary "Delete Decks"]
+         [:> mui/AccordionDetails [delete-component]]]
+        [:> mui/Accordion
+         [:> mui/AccordionSummary "View Decks"]
+         [:> mui/AccordionDetails [viewer-component]]]]
+       [TabPanel {:value @tab :index 1}]])))
