@@ -60,16 +60,16 @@
 (defn export-component []
   (let [selected (r/atom nil)]
     [:div#export
-     [:h3 "Export" [:form
-                    {:on-submit (fn [e] (.preventDefault e))}
-                    [:select
-                     {:on-change #(reset! selected (-> % .-target .-value js/parseInt))}
-                     [:option {:value 0 :selected true :disabled true :hidden true} "Choose a deck to export"]
-                     (gen-options)]
-                    [:button
-                     {:type "submit"
-                      :on-click #(export-deck @selected)}
-                     "Export!"]]]]))
+     [:form
+      {:on-submit (fn [e] (.preventDefault e))}
+      [:select
+       {:on-change #(reset! selected (-> % .-target .-value js/parseInt))}
+       [:option {:value 0 :selected true :disabled true :hidden true} "Choose a deck to export"]
+       (gen-options)]
+      [:button
+       {:type "submit"
+        :on-click #(export-deck @selected)}
+       "Export!"]]]))
 
 (defonce deck-name (r/atom "New deck name"))
 (defonce csv-content (r/atom nil))
@@ -94,30 +94,26 @@
   (client/create-deck @api-key deck-name (fn [response]
                                            (let [deck (csv->jpdb (csv/read-csv deck-contents))
                                                  id (:id response)]
-                                             ;;TODO split
-                                             ;; (map (fn [entry]
-                                             ;;        (let [[vid sid occ]])
-                                             ;;        ) deck )
                                              (client/add-vocab-to-deck @api-key id deck (fn [response] (js/console.log response)))))))
 
 (defn import-component []
   [:div#import
-   [:h3 "Import" [:form
-                  {:on-submit (fn [e] (.preventDefault e))}
-                  [:p "Name of the deck after importing (can't be empty): (TODO do the react verify thing idk)"]
-                  [:input {:name "deck-name"
-                           :value @deck-name
-                           :on-change #(reset! deck-name (-> % .-target .-value))}]
-                  [:input {:type "file"
-                           :name "file-input"
-                           :on-change (fn [e]
-                                        (when (not (= "" (-> e .-target .-value)))
-                                          (let [file (-> e .-target .-files (aget 0))]
-                                            (.then (js/Promise.resolve (.text file)) #(reset! csv-content %)))))}]
-                  [:button
-                   {:type "submit"
-                    :on-click #(import-deck @deck-name @csv-content)}
-                   "Import!"]]]])
+   [:form
+    {:on-submit (fn [e] (.preventDefault e))}
+    [:p "Name of the deck after importing (can't be empty): (TODO do the react verify thing, also importe multiple?)"]
+    [:input {:name "deck-name"
+             :value @deck-name
+             :on-change #(reset! deck-name (-> % .-target .-value))}]
+    [:input {:type "file"
+             :name "file-input"
+             :on-change (fn [e]
+                          (when (not (= "" (-> e .-target .-value)))
+                            (let [file (-> e .-target .-files (aget 0))]
+                              (.then (js/Promise.resolve (.text file)) #(reset! csv-content %)))))}]
+    [:button
+     {:type "submit"
+      :on-click #(import-deck @deck-name @csv-content)}
+     "Import!"]]])
 
 (defn deck-list->str [decks]
   (->> decks
@@ -134,8 +130,7 @@
 (defn delete-component []
   (let [selected (r/atom nil)]
     [:div#delete
-     [:h3 "Delete Decks"]
-     [:p "Select the decks to delete (use shift/control/dragging for multiple) (TODO: verify and also alert)"]
+     [:p "Select the decks to delete (use shift/control/dragging for multiple)"]
      [:form
       {:on-submit (fn [e] (.preventDefault e))}
       [:select
@@ -233,7 +228,6 @@
         contents (r/atom nil)]
     (fn []
       [:div#viewer
-       [:h3 "View Decks (TODOish, will see improvement over time)"]
        [:p "TODOs: a tab for a 'review mode' where words are stacked together, etc etc"]
        [viewer-select-component selected contents]
        [viewer-filter-component filters]
@@ -243,7 +237,15 @@
   (when (= "" @api-key)
     (rfe/replace-state :starter.browser/frontpage))
   [:div
-   [export-component]
-   [import-component]
-   [delete-component]
-   [viewer-component]])
+   [:> mui/Accordion
+    [:> mui/AccordionSummary "Export A Deck"]
+    [:> mui/AccordionDetails [export-component]]]
+   [:> mui/Accordion
+    [:> mui/AccordionSummary "Import Decks"]
+    [:> mui/AccordionDetails [import-component]]]
+   [:> mui/Accordion
+    [:> mui/AccordionSummary "Delete Decks"]
+    [:> mui/AccordionDetails [delete-component]]]
+   [:> mui/Accordion
+    [:> mui/AccordionSummary "View Decks"]
+    [:> mui/AccordionDetails [viewer-component]]]])
