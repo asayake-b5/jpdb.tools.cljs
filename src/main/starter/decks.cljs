@@ -48,7 +48,8 @@
                           (fn [response]
                             (let [merged (mapv conj (:vocabulary response) (:occurences response))
                                   csv (csv/write-csv merged)
-                                  name "test.csv"]
+                                  deck-name (get (first (filter #(= (% 0) value) (:decks @user-decks))) 1)
+                                  name (str deck-name ".csv")]
                               (utils/download-data csv name "text/csv")))))
 
 (defn gen-options []
