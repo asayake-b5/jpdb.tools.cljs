@@ -1,6 +1,7 @@
 (ns starter.utils
   (:require
-   [cljs.pprint :as pp]))
+   ["@mui/material" :as mui]
+   [reagent.core :as r]))
 
 ;; Thanks to http://blog.find-method.de/index.php?/archives/218-File-download-with-ClojureScript.html
 ;; for saving me the trouble of converting myself
@@ -32,3 +33,12 @@
 
 ;; (defn export-data []
 ;;   (download-data (:data @some-state) "exported-data.txt" "text/plain"))
+
+(defn TabPanel []
+  (let [this (r/current-component)
+        props (r/props this)
+        value (:value props)
+        index (:index props)]
+    [:div {:role "tabpanel" :hidden (not= value index)}
+     (when (= value index)
+       (into [:> mui/Box {:p 3}] (r/children this)))]))

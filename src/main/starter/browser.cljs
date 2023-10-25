@@ -6,13 +6,14 @@
    [reitit.coercion.spec :as rss]
    [reitit.frontend :as rf]
    [reitit.frontend.easy :as rfe]
+   [cljs-jpdb.core :as jpdb]
    [starter.decks :refer [main-page]]
    [starter.jpdb-client :as client :refer [api-key]]))
 
 (defonce match (r/atom nil))
 
 (defn verify-on-click []
-  (client/ping @api-key)
+  (jpdb/ping @api-key #() #())
   (starter.decks/reload-decks)
   (rfe/replace-state :starter.browser/main))
 
