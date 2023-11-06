@@ -1,11 +1,12 @@
 (ns starter.decks
   (:require
    ["@mui/material" :as mui]
+   [cljs-jpdb.core :as jpdb]
+   [clojure.string :as str]
    [goog.object :as gobj]
    [reagent.core :as r]
    [reitit.frontend.easy :as rfe]
    [starter.jpdb-client :as client :refer [api-key]]
-   [cljs-jpdb.core :as jpdb]
    [starter.utils :as utils :refer [TabPanel]]
    [testdouble.cljs.csv :as csv]))
 
@@ -261,8 +262,11 @@
             :on-page-change (fn [_ newpage]  (reset! page newpage)) :page @page
             :on-rows-per-page-change (fn [event] (reset! rows-per-page (-> event .-target .-value)))}]]]]])))
 
+(defn magic [contents]
+  (mapv (fn [e] (update e 4 (fn [f] (str/join "\n" (map (fn [g] (str "- " g)) f))))) contents))
+
 (defn export-data [contents]
-  (utils/download-data (csv/write-csv contents :separator \tab) "export.csv" "text/csv"))
+  (utils/download-data (csv/write-csv (magic contents) :separator \tab :quote? true) "export.csv" "text/csv"))
   ;; (js/console.log (clj->js contents)))
 
 (defn viewer-component []
